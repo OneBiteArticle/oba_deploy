@@ -1,49 +1,81 @@
-stage('1. Prepare Environment') {
-    steps {
-        script {
-            echo "각 oba_ 서비스 디렉토리의 .env 파일에 보안 변수를 주입합니다."
+pipeline {
+    agent any
+    
+    // 환경 변수 설정
+    environment {
+        MM_WEBHOOK = credentials('MATTERMOST_WEBHOOK_URL')
+        DB_PWD     = credentials('OBA_DB_PASSWORD')
+        MONGO_URI  = credentials('MONGODB_URI')
+        JWT_KEY    = credentials('JWT_SECRET')
+        G_SECRET   = credentials('GOOGLE_CLIENT_SECRET')
+        K_SECRET   = credentials('KAKAO_CLIENT_SECRET')
+        N_SECRET   = credentials('NAVER_CLIENT_SECRET')
+        OPENAI_KEY = credentials('OPENAI_API_KEY')
+    }
 
-            // 1. oba_backend: DB, Mongo, Social Secrets, JWT
-            sh """
-                echo '\n# Security Inject' >> oba_backend/.env
-                echo 'DB_PASSWORD=${env.DB_PW}' >> oba_backend/.env
-                echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_backend/.env
-                echo 'JWT_SECRET=${env.JWT_KEY}' >> oba_backend/.env
-                echo 'GOOGLE_CLIENT_SECRET=${env.G_SECRET}' >> oba_backend/.env
-                echo 'KAKAO_CLIENT_SECRET=${env.K_SECRET}' >> oba_backend/.env
-                echo 'NAVER_CLIENT_SECRET=${env.N_SECRET}' >> oba_backend/.env
-            """
+    stages {
+        stage('1. Prepare Environment') {
+            // 핵심: 선언형 파이프라인은 stage 안에 반드시 steps 블록이 있어야 합니다.
+            steps {
+                script {
+                    echo "각 oba_ 서비스 디렉토리의 .env 파일에 보안 변수를 주입합니다."
 
-            // 2. oba_AI: OpenAI Key, Mongo
-            sh """
-                echo '\n# Security Inject' >> oba_AI/.env
-                echo 'OPEN_API_KEY=${env.OPENAI_KEY}' >> oba_AI/.env
-                echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_AI/.env
-            """
+                    // oba_backend
+                    sh """
+                        echo '\n# Security Inject' >> oba_backend/.env
+                        echo 'DB_PASSWORD=${env.DB_PW}' >> oba_backend/.env
+                        echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_backend/.env
+                        echo 'JWT_SECRET=${env.JWT_KEY}' >> oba_backend/.env
+                        echo 'GOOGLE_CLIENT_SECRET=${env.G_SECRET}' >> oba_backend/.env
+                        echo 'KAKAO_CLIENT_SECRET=${env.K_SECRET}' >> oba_backend/.env
+                        echo 'NAVER_CLIENT_SECRET=${env.N_SECRET}' >> oba_backend/.env
+                    """
 
-            // 3. oba_data: Mongo, OBA_DB_PASSWORD
-            sh """
-                echo '\n# Security Inject' >> oba_data/.env
-                echo 'MONGO_URI=${env.MONGO_URI}' >> oba_data/.env
-                echo 'OBA_DB_PASSWORD=${env.DB_PW}' >> oba_data/.env
-            """
+                    // oba_AI
+                    sh """
+                        echo '\n# Security Inject' >> oba_AI/.env
+                        echo 'OPEN_API_KEY=${env.OPENAI_KEY}' >> oba_AI/.env
+                        echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_AI/.env
+                    """
+
+                    // oba_data
+                    sh """
+                        echo '\n# Security Inject' >> oba_data/.env
+                        echo 'MONGO_URI=${env.MONGO_URI}' >> oba_data/.env
+                        echo 'OBA_DB_PASSWORD=${env.DB_PW}' >> oba_data/.env
+                    """
+                }
+            }
+        }
+
+        stage('2. Deploy Services') {
+            steps {
+                script {
+                    try {
+                        echo "oba_ 서비스 무중단 배포를 시작합니다."
+                        sh "docker-compose -f oba_backend/docker-compose.yml up --build -d"
+                        sh "docker-compose -f oba_AI/docker-compose.yml up --build -d"
+                        sh "docker-compose -f oba_data/docker-compose.yml up --build -d"
+                    } catch (Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        error "❌ 배포 단계에서 에러 발생"
+                    }
+                }
+            }
         }
     }
-}
 
-stage('2. Deploy Services') {
-    steps {
-        script {
-            try {
-                echo "oba_ 서비스 무중단 배포를 시작합니다."
-                // 실제 폴더명인 oba_ 접두사를 붙여서 실행합니다.
-                sh "docker-compose -f oba_backend/docker-compose.yml up --build -d"
-                sh "docker-compose -f oba_AI/docker-compose.yml up --build -d"
-                sh "docker-compose -f oba_data/docker-compose.yml up --build -d"
-            } catch (Exception e) {
-                currentBuild.result = 'FAILURE'
-                error "❌ 배포 단계에서 에러 발생"
+    post {
+        failure {
+            script {
+                def logFile = "${env.WORKSPACE}/extracted_log.txt"
+                sh "tail -n 100 /var/jenkins_home/jobs/${env.JOB_NAME}/builds/${env.BUILD_NUMBER}/log > ${logFile}"
+                sh "python3 infra/jenkins/analyze_log.py ${logFile} ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
+                sh "curl -sS -X POST -H 'Content-Type: application/json' -d @mattermost_payload.json ${MM_WEBHOOK}"
             }
+        }
+        success {
+            sh "curl -sS -X POST -H 'Content-Type: application/json' -d '{\"text\":\"✅ **[한입기사]** 배포가 성공적으로 완료되었습니다!\"}' ${MM_WEBHOOK}"
         }
     }
 }
