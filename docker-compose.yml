@@ -1,0 +1,147 @@
+services:
+  ###############################################################
+  #                       AIRFLOW
+  ###############################################################
+  airflow:
+    build:
+      context: ./oba_data
+      dockerfile: Dockerfile
+    container_name: airflow-standalone
+    env_file:
+      - ./oba_data/.env
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "mysql+mysqldb://$${OBA_DB_USER}:$${OBA_DB_PASSWORD}@$${OBA_DB_HOST}:$${OBA_DB_PORT}/$${AIRFLOW_DB_NAME}?charset=utf8mb4"
+      AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS: "False"
+      AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+      AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "s3://obadata-airflow-logs/airflow/logs"
+      AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "aws_default"
+      AIRFLOW__LOGGING__DELETE_LOCAL_LOGS: "True"
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: "/opt/airflow/logs"
+      AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: "False"
+      AIRFLOW__SCHEDULER__LOG_CLEANUP_AGE: "3"
+      # DB 커넥션 폭주 방지 (핵심)
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: "3"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: "0"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: "300"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING: "True"
+
+      # 실행 동시성 제한 (스파이크 방지)
+      AIRFLOW__CORE__PARALLELISM: "2"
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: "1"
+      AIRFLOW__CORE__DAG_CONCURRENCY: "1"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./oba_data/airflow/dags:/opt/airflow/dags
+    command: >
+      airflow standalone
+    restart: always
+    networks:
+      - oba_shared_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ###############################################################
+  #                       SPRING BACKEND
+  ###############################################################
+  spring_backend:
+    build:
+      context: ./oba_backend
+      dockerfile: Dockerfile
+    container_name: oba-backend
+    env_file:
+      - ./oba_backend/.env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "8"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+      SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "300000"
+      SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "60000"
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mongodb
+      - ai_service
+    networks:
+      - oba_shared_network
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ###############################################################
+  #                FASTAPI AI ANALYSIS SERVER
+  ###############################################################
+  ai_service:
+    build:
+      context: ./oba_AI
+      dockerfile: Dockerfile
+    container_name: oba-ai
+    env_file:
+      - ./oba_AI/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    networks:
+      - oba_shared_network
+    restart: always
+    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000" ]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  ###############################################################
+  #                       FRONTEND (Vite/React)
+  ###############################################################
+  frontend:
+    build:
+      context: ./oba_frontend
+      dockerfile: Dockerfile
+    container_name: oba-frontend
+    ports:
+      - "8082:8081"
+    networks:
+      - oba_shared_network
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  ###############################################################
+  #                       MONGODB (AI + Spring 공통)
+  ###############################################################
+  mongodb:
+    image: mongo:7
+    container_name: oba-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: OneBitArticle
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - oba_shared_network
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ─── 네트워크 설정: 수동 생성한 oba_shared_network 사용 ───
+networks:
+  oba_shared_network:
+    external: true
+
+volumes:
+  mongo_data:
