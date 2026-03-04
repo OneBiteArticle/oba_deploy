@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         MM_WEBHOOK = credentials('MATTERMOST_WEBHOOK_URL')
-        DB_PWD     = credentials('OBA_DB_PASSWORD')
+        DB_PW      = credentials('OBA_DB_PASSWORD')
         MONGO_URI  = credentials('MONGODB_URI')
         JWT_KEY    = credentials('JWT_SECRET')
         G_SECRET   = credentials('GOOGLE_CLIENT_SECRET')
@@ -16,9 +16,8 @@ pipeline {
         stage('1. Prepare Environment') {
             steps {
                 script {
-                    echo "각 oba_ 서비스 디렉토리에 보안 변수를 주입합니다."
-
-                    // 최상위 루트 기준 경로 (oba_backend, oba_AI, oba_data)
+                    echo "보안 변수 주입 중..."
+                    // oba_backend
                     sh """
                         echo '\n# Security Inject' >> oba_backend/.env
                         echo 'DB_PASSWORD=${env.DB_PW}' >> oba_backend/.env
@@ -28,13 +27,13 @@ pipeline {
                         echo 'KAKAO_CLIENT_SECRET=${env.K_SECRET}' >> oba_backend/.env
                         echo 'NAVER_CLIENT_SECRET=${env.N_SECRET}' >> oba_backend/.env
                     """
-
+                    // oba_AI
                     sh """
                         echo '\n# Security Inject' >> oba_AI/.env
                         echo 'OPEN_API_KEY=${env.OPENAI_KEY}' >> oba_AI/.env
                         echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_AI/.env
                     """
-
+                    // oba_data
                     sh """
                         echo '\n# Security Inject' >> oba_data/.env
                         echo 'MONGO_URI=${env.MONGO_URI}' >> oba_data/.env
@@ -48,13 +47,12 @@ pipeline {
             steps {
                 script {
                     try {
-                        echo "최상위 docker-compose를 사용하여 모든 서비스를 통합 배포합니다."
-                        // 프로젝트 루트(.)에 있는 docker-compose.yml을 실행합니다.
-                        // 이 파일이 backend, AI, data 컨테이너를 모두 정의하고 있어야 합니다.
+                        echo "루트 디렉토리의 docker-compose로 통합 배포를 시작합니다."
+                        // 프로젝트 루트에 있는 docker-compose.yml을 실행합니다.
                         sh "docker-compose up --build -d"
                     } catch (Exception e) {
                         currentBuild.result = 'FAILURE'
-                        error "❌ 통합 배포 단계에서 에러 발생"
+                        error "❌ 통합 배포 중 에러 발생"
                     }
                 }
             }
@@ -63,20 +61,16 @@ pipeline {
 
     post {
         failure {
-            node {
-                script {
-                    def logFile = "${env.WORKSPACE}/extracted_log.txt"
-                    sh "tail -n 100 /var/jenkins_home/jobs/${env.JOB_NAME}/builds/${env.BUILD_NUMBER}/log > ${logFile}"
-                    // ANSI 색상 코드를 제거하도록 수정한 analyze_log.py를 호출하세요.
-                    sh "python3 infra/jenkins/analyze_log.py ${logFile} ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
-                    sh "curl -sS -X POST -H 'Content-Type: application/json' -d @mattermost_payload.json ${MM_WEBHOOK}"
-                }
+            // node 블록을 제거하고 바로 script 실행
+            script {
+                def logFile = "${env.WORKSPACE}/extracted_log.txt"
+                sh "tail -n 100 /var/jenkins_home/jobs/${env.JOB_NAME}/builds/${env.BUILD_NUMBER}/log > ${logFile}"
+                sh "python3 infra/jenkins/analyze_log.py ${logFile} ${env.JOB_NAME} ${env.BUILD_NUMBER} ${env.BUILD_URL}"
+                sh "curl -sS -X POST -H 'Content-Type: application/json' -d @mattermost_payload.json ${MM_WEBHOOK}"
             }
         }
         success {
-            node {
-                sh "curl -sS -X POST -H 'Content-Type: application/json' -d '{\"text\":\"✅ **[한입기사]** 모든 서비스가 성공적으로 통합 배포되었습니다!\"}' ${MM_WEBHOOK}"
-            }
+            sh "curl -sS -X POST -H 'Content-Type: application/json' -d '{\"text\":\"✅ **[한입기사]** 모든 서비스가 통합 배포되었습니다!\"}' ${MM_WEBHOOK}"
         }
     }
 }
