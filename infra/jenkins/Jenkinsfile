@@ -1,0 +1,49 @@
+stage('1. Prepare Environment') {
+    steps {
+        script {
+            echo "각 oba_ 서비스 디렉토리의 .env 파일에 보안 변수를 주입합니다."
+
+            // 1. oba_backend: DB, Mongo, Social Secrets, JWT
+            sh """
+                echo '\n# Security Inject' >> oba_backend/.env
+                echo 'DB_PASSWORD=${env.DB_PW}' >> oba_backend/.env
+                echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_backend/.env
+                echo 'JWT_SECRET=${env.JWT_KEY}' >> oba_backend/.env
+                echo 'GOOGLE_CLIENT_SECRET=${env.G_SECRET}' >> oba_backend/.env
+                echo 'KAKAO_CLIENT_SECRET=${env.K_SECRET}' >> oba_backend/.env
+                echo 'NAVER_CLIENT_SECRET=${env.N_SECRET}' >> oba_backend/.env
+            """
+
+            // 2. oba_AI: OpenAI Key, Mongo
+            sh """
+                echo '\n# Security Inject' >> oba_AI/.env
+                echo 'OPEN_API_KEY=${env.OPENAI_KEY}' >> oba_AI/.env
+                echo 'MONGODB_URI=${env.MONGO_URI}' >> oba_AI/.env
+            """
+
+            // 3. oba_data: Mongo, OBA_DB_PASSWORD
+            sh """
+                echo '\n# Security Inject' >> oba_data/.env
+                echo 'MONGO_URI=${env.MONGO_URI}' >> oba_data/.env
+                echo 'OBA_DB_PASSWORD=${env.DB_PW}' >> oba_data/.env
+            """
+        }
+    }
+}
+
+stage('2. Deploy Services') {
+    steps {
+        script {
+            try {
+                echo "oba_ 서비스 무중단 배포를 시작합니다."
+                // 실제 폴더명인 oba_ 접두사를 붙여서 실행합니다.
+                sh "docker-compose -f oba_backend/docker-compose.yml up --build -d"
+                sh "docker-compose -f oba_AI/docker-compose.yml up --build -d"
+                sh "docker-compose -f oba_data/docker-compose.yml up --build -d"
+            } catch (Exception e) {
+                currentBuild.result = 'FAILURE'
+                error "❌ 배포 단계에서 에러 발생"
+            }
+        }
+    }
+}
