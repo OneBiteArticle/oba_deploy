@@ -28,6 +28,6 @@ logs
 .idea
 
 # Environment files
-.env
+# .env  ← 빌드 타임에 EXPO_PUBLIC_* 변수가 정적 파일에 구워져야 해서 포함시킴
 .env.local
 .env.*.local
