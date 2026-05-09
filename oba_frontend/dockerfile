@@ -28,5 +28,3 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 8081
 
 CMD ["serve", "-s", "dist", "-l", "8081"]
-
-

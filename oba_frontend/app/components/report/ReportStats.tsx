@@ -2,15 +2,10 @@ import { View, Text, StyleSheet } from "react-native";
 
 /**
  * 리포트 통계 카드 컴포넌트
- * - 연속 학습일 (current_streak)
- * - 최고 연속일 (max_streak)
- * - 누적 퍼펙트일 (total_perfect_days)
- *
- * 📍 API 명세: /BACKEND_API_SPEC.md - "1️⃣ 사용자 통계 조회"
- * 엔드포인트: GET /api/report/stats
- * 응답: { consecutiveDays, maxConsecutiveDays, perfectDays, lastLearnedAt }
+ * - 연속 학습일 (consecutiveDays)
+ * - 최고 연속일 (maxConsecutiveDays)
+ * - 완벽 학습일 (perfectDays)
  */
-
 interface ReportStatsProps {
   consecutiveDays: number;
   maxConsecutiveDays: number;
@@ -18,23 +13,19 @@ interface ReportStatsProps {
 }
 
 export default function ReportStats({
-  consecutiveDays = 12,
-  maxConsecutiveDays = 28,
-  perfectDays = 16,
+  consecutiveDays = 0,
+  maxConsecutiveDays = 0,
+  perfectDays = 0,
 }: ReportStatsProps) {
   return (
     <View style={styles.container}>
-      {/* 각 통계 카드 */}
       <StatCard label="연속 학습일" value={consecutiveDays} />
-      <StatCard label="최고 연속 학습일" value={maxConsecutiveDays} />
-      <StatCard label="누적 퍼펙트일" value={perfectDays} />
+      <StatCard label="최고 연속일" value={maxConsecutiveDays} />
+      <StatCard label="완벽 학습일" value={perfectDays} />
     </View>
   );
 }
 
-/**
- * 개별 통계 카드
- */
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <View style={styles.card}>
