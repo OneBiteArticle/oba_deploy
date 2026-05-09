@@ -5,6 +5,7 @@ export type DailyStatLike = {
   solvedCount?: number;
   solvedArticles?: number;
   articleCount?: number;
+  submittedArticles?: number;
 };
 
 const KST_OFFSET_HOURS = 9;
@@ -68,31 +69,16 @@ function firstFiniteNumber(...values: unknown[]): number | null {
 }
 
 export function countFromDailyStat(stat: DailyStatLike): number {
-  // Product rule: pizza slice count == solved quiz count.
-  // Use only explicit quiz-correct fields from daily-stats.
-  // IMPORTANT: do not read generic `solvedCount` here (it may represent other aggregates).
-  const attemptedQuizzes = firstFiniteNumber(
-    stat.attemptedQuizzes,
-    (stat as any).attemptedQuizCount,
-    (stat as any).attemptedCount,
-    (stat as any).solvedQuizAttemptedCount,
+  // Product rule: pizza slice count == number of articles the user submitted that day.
+  // Each submission = 1 slice (regardless of correct/incorrect quiz outcomes), capped at 5.
+  const submittedArticles = firstFiniteNumber(
+    stat.submittedArticles,
+    (stat as any).solvedArticleCount,
+    stat.solvedArticles,
+    stat.articleCount,
   );
 
-  const quizSolved = firstFiniteNumber(
-    stat.correctQuizzes,
-    (stat as any).correctQuizCount,
-    (stat as any).correctCount,
-    (stat as any).solvedQuizCount,
-    (stat as any).quizSolvedCount,
-    (stat as any).solvedProblemCount,
-  );
-
-  if (quizSolved != null) {
-    const bounded = attemptedQuizzes != null ? Math.min(quizSolved, attemptedQuizzes) : quizSolved;
-    return clampSliceCount(bounded);
-  }
-
-  if (attemptedQuizzes != null) return clampSliceCount(attemptedQuizzes);
+  if (submittedArticles != null) return clampSliceCount(submittedArticles);
 
   return 0;
 }
