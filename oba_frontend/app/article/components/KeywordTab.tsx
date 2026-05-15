@@ -1,8 +1,6 @@
-// oba_fronted/app/article/components/KeywordTab.tsx
-
 import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
+import { COLORS, RADIUS, SHADOWS, TYPO, SPACING } from "../../../constants/theme";
 
-// 🍕 pizza 이미지 4개 불러오기
 const pizzaImages = [
   require("../../../assets/pizza/comb.png"),
   require("../../../assets/pizza/hwaa.png"),
@@ -10,47 +8,48 @@ const pizzaImages = [
   require("../../../assets/pizza/pep.png"),
 ];
 
-export default function KeywordTab({ keywords }) {
+export default function KeywordTab({ keywords = [] }) {
+  if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+    return (
+      <ScrollView contentContainerStyle={{ padding: SPACING.xl, alignItems: "center", paddingTop: 60 }}>
+        <Text style={{ ...TYPO.body, color: COLORS.textTertiary }}>키워드를 준비 중이에요.</Text>
+      </ScrollView>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      {keywords.map((word, index) => (
-        <View key={index} style={{ marginBottom: 18, padding: 16, backgroundColor: "#fff", borderRadius: 14 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700" }}>{word}</Text>
-        </View>
-      ))}
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      {keywords.map((item: any, index: number) => {
+        const word = typeof item === "string" ? item : item.keyword || "";
+        const desc = typeof item === "object" && item.description ? item.description : null;
+
+        return (
+          <View key={index} style={styles.keywordBox}>
+            <View style={styles.row}>
+              <Image source={pizzaImages[index % pizzaImages.length]} style={styles.pizzaImg} />
+              <Text style={styles.word}>{word}</Text>
+            </View>
+            {desc && <Text style={styles.desc}>{desc}</Text>}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }
 
-
 const styles = StyleSheet.create({
-  scrollView: { flex: 1 },
-  container: { padding: 20, paddingBottom: 40 },
+  container: { padding: SPACING.xl, paddingBottom: 40 },
   keywordBox: {
-    marginBottom: 18,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    marginBottom: SPACING.lg,
+    padding: SPACING.xl,
+    backgroundColor: COLORS.bgCardElevated,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    ...SHADOWS.sm,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 3,
-    marginLeft: 5,
-  },
-  word: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333",
-  },
-  pizzaImg: {
-    width: 23,
-    height: 23,
-    marginRight: 6,
-  },
+  row: { flexDirection: "row", alignItems: "center", marginBottom: 3, marginLeft: 5 },
+  word: { ...TYPO.h3, color: COLORS.textPrimary },
+  pizzaImg: { width: 28, height: 28, marginRight: 8 },
+  desc: { ...TYPO.bodySm, color: COLORS.textSecondary, marginTop: 6 },
 });

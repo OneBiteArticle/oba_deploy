@@ -227,14 +227,16 @@ Content-Type: application/json
       "day": "Mon",
       "accuracy": 60,
       "attemptedQuizzes": 5,
-      "correctQuizzes": 3
+      "correctQuizzes": 3,
+      "submittedArticles": 1
     },
     {
       "date": "2026-02-10",
       "day": "Tue",
       "accuracy": 50,
       "attemptedQuizzes": 4,
-      "correctQuizzes": 2
+      "correctQuizzes": 2,
+      "submittedArticles": 1
     },
     {
       "date": "2026-02-11",
@@ -285,6 +287,7 @@ Content-Type: application/json
 | accuracy | INT | 해당 날짜 정답률 (0~100) | (correctQuizzes / attemptedQuizzes) * 100 |
 | attemptedQuizzes | INT | 해당 날짜 풀이한 문제 수 | Incorrect_Quiz 레코드당 1개 계산 |
 | correctQuizzes | INT | 해당 날짜 맞춘 문제 수 | SUM(quiz1~5이 true인 개수) / 5 |
+| submittedArticles | INT | 해당 날짜에 제출한 distinct 기사 수 (홈 피자 조각용, 최대 5) | COUNT(DISTINCT article_id) FROM Article_Logs WHERE submitted=true |
 
 ### Calculation Rules
 

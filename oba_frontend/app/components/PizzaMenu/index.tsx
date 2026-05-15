@@ -1,14 +1,19 @@
-// app/components/PizzaMenu/index.tsx
 import { View, Pressable, Animated, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import usePizzaAnimation from "./usePizzaAnimation";
 import PizzaSlice from "./PizzaSlice";
+
+const LABEL_MY = String.fromCodePoint(0xb9c8, 0xc774);
+const LABEL_REPORT = String.fromCodePoint(0xb9ac, 0xd3ec, 0xd2b8);
+const LABEL_WRONG = String.fromCodePoint(0xd2c0, 0xb9b0, 0xbb38, 0xc81c);
+const DEBUG_TOUCH = false;
 
 export default function PizzaMenu() {
   const {
     toggle,
     halfScale,
     sliceScale,
+    sliceOpacity,
     slice1X,
     slice1Y,
     slice2X,
@@ -23,88 +28,108 @@ export default function PizzaMenu() {
   } = usePizzaAnimation();
 
   const insets = useSafeAreaInsets();
-  const containerSize = 70 * factor;
-  const halfSize = 70 * factor;
+  const pizzaSize = 74 * factor;
+  const closedTouchSize = pizzaSize * 1.04;
 
   return (
     <View
       style={[
         styles.container,
-        { width: containerSize, height: containerSize, bottom: insets.bottom + 16 },
+        { width: pizzaSize, height: pizzaSize, bottom: insets.bottom + 14 },
       ]}
     >
-      {/* 슬라이스 1: 마이 */}
-      <PizzaSlice
-        source={require("../../../assets/navi/navi_slice_1.png")}
-        translateX={slice1X}
-        translateY={slice1Y}
-        scale={sliceScale}
-        onPressRoute="/my"
-        isOpen={isOpen}
-        onToggle={toggle}
-        factor={factor}
-        anim={anim}
-        label="마이"
-        sliceTouchScale={0.5}
-        sliceSize={60}
-        labelOffsetX={-25}
-        labelOffsetY={-50}
-      />
+      <View pointerEvents={isOpen ? "auto" : "none"} style={StyleSheet.absoluteFill}>
+        <PizzaSlice
+          source={require("../../../assets/navi/navi_slice_1.png")}
+          translateX={slice1X}
+          translateY={slice1Y}
+          scale={sliceScale}
+          sliceOpacity={sliceOpacity}
+          debugTouch={DEBUG_TOUCH}
+          onPressRoute="/(tabs)/my"
+          isOpen={isOpen}
+          onToggle={toggle}
+          factor={factor}
+          anim={anim}
+          label={LABEL_MY}
+          sliceWidth={29.0}
+          sliceHeight={39.9}
+          labelOffsetX={-28}
+          labelOffsetY={-52}
+          labelMinWidth={66}
+          labelPaddingX={12}
+          labelPaddingY={5}
+        />
 
-      {/* 슬라이스 2: 리포트 */}
-      <PizzaSlice
-        source={require("../../../assets/navi/navi_slice_2.png")}
-        translateX={slice2X}
-        translateY={slice2Y}
-        scale={sliceScale}
-        onPressRoute="/report"
-        isOpen={isOpen}
-        onToggle={toggle}
-        factor={factor}
-        anim={anim}
-        label="리포트"
-        sliceTouchScale={0.5}
-        sliceSize={62.5}
-        sliceRotation={0.3}
-        labelOffsetX={-55}
-        labelOffsetY={-25}
-      />
+        <PizzaSlice
+          source={require("../../../assets/navi/navi_slice_2.png")}
+          translateX={slice2X}
+          translateY={slice2Y}
+          scale={sliceScale}
+          sliceOpacity={sliceOpacity}
+          debugTouch={DEBUG_TOUCH}
+          onPressRoute="/(tabs)/report"
+          isOpen={isOpen}
+          onToggle={toggle}
+          factor={factor}
+          anim={anim}
+          label={LABEL_REPORT}
+          sliceWidth={40.2}
+          sliceHeight={36.9}
+          labelOffsetX={-70}
+          labelOffsetY={-24}
+          labelMinWidth={72}
+          labelPaddingX={12}
+          labelPaddingY={5}
+        />
 
-      {/* 슬라이스 3: 틀린문제 */}
-      <PizzaSlice
-        source={require("../../../assets/navi/navi_slice_3.png")}
-        translateX={slice3X}
-        translateY={slice3Y}
-        scale={sliceScale}
-        onPressRoute="/wrongArticles"
-        isOpen={isOpen}
-        onToggle={toggle}
-        factor={factor}
-        anim={anim}
-        label="틀린문제"
-        sliceTouchScale={0.5}
-        sliceSize={63}
-        sliceRotation={0.5}
-        labelOffsetX={-85}
-        labelOffsetY={0}
-      />
+        <PizzaSlice
+          source={require("../../../assets/navi/navi_slice_3.png")}
+          translateX={slice3X}
+          translateY={slice3Y}
+          scale={sliceScale}
+          sliceOpacity={sliceOpacity}
+          debugTouch={DEBUG_TOUCH}
+          onPressRoute="/(tabs)/wrongArticles"
+          isOpen={isOpen}
+          onToggle={toggle}
+          factor={factor}
+          anim={anim}
+          label={LABEL_WRONG}
+          sliceWidth={41.1}
+          sliceHeight={31.5}
+          labelOffsetX={-86}
+          labelOffsetY={10}
+          labelMinWidth={88}
+          labelPaddingX={12}
+          labelPaddingY={5}
+        />
+      </View>
 
-      {/* 기본 피자 반쪽 - 토글 버튼 */}
-      <Pressable onPress={toggle}>
+      {DEBUG_TOUCH && !isOpen && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            width: closedTouchSize,
+            height: closedTouchSize,
+            borderRadius: closedTouchSize / 2,
+            backgroundColor: "rgba(0,255,0,0.18)",
+            borderWidth: 1,
+            borderColor: "rgba(0,128,0,0.9)",
+            transform: [{ scale: halfScale }, { translateX: baseX }, { translateY: baseY }],
+          }}
+        />
+      )}
+
+      <Pressable onPress={toggle} style={StyleSheet.absoluteFill}>
         <Animated.Image
           source={require("../../../assets/navi/navi_half.png")}
-          style={[
-            styles.halfPizza,
-            {
-              width: halfSize,
-              height: halfSize,
-              transform: [
-                { scale: halfScale },
-                { translateX: baseX },
-                { translateY: baseY },
-              ],
-            },
-          ]}
+          style={{
+            width: pizzaSize,
+            height: pizzaSize,
+            transform: [{ scale: halfScale }, { translateX: baseX }, { translateY: baseY }],
+          }}
           resizeMode="contain"
         />
       </Pressable>
@@ -115,15 +140,6 @@ export default function PizzaMenu() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-
-    right: 10,
-    width: 50,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  halfPizza: {
-    width: 50,
-    height: 50,
+    right: 16,
   },
 });
